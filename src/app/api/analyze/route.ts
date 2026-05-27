@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
 function getSystemPrompt(): string {
   try {
@@ -17,9 +17,9 @@ Step 1 模式识别、Step 2 财务体检、Step 3 估值定位、Step 4 趋势�
 }
 
 export async function POST(request: NextRequest) {
-  if (!ANTHROPIC_API_KEY) {
+  if (!DEEPSEEK_API_KEY) {
     return NextResponse.json(
-      { error: 'ANTHROPIC_API_KEY not configured' },
+      { error: 'DEEPSEEK_API_KEY not configured' },
       { status: 500 }
     );
   }
@@ -35,18 +35,17 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = getSystemPrompt();
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: 'deepseek-chat',
         max_tokens: 4096,
-        system: systemPrompt,
         messages: [
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: `分析一下 ${stock}` }
         ],
       }),
@@ -55,13 +54,13 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       return NextResponse.json(
-        { error: errorData.error?.message || 'Claude API error' },
+        { error: errorData.error?.message || 'DeepSeek API error' },
         { status: response.status }
       );
     }
 
     const data = await response.json();
-    const content = data.content?.[0]?.text || '';
+    const content = data.choices?.[0]?.message?.content || '';
 
     // Parse the analysis result into structured format
     const parsed = parseAnalysis(content);
